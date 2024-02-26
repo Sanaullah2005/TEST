@@ -96,7 +96,52 @@ app.get('/home', (req, res) => {
     }
 });
 
+// Handle form submission
+app.post('/submit', upload.array('image', 4), (req, res) => {
+    const quizData = req.body.quizData;
 
+    // Check if quizData is properly provided
+    if (!quizData) {
+        return res.status(400).send('No quiz data provided.');
+    }
+
+    // Read existing quiz data JSON file
+    let existingData = [];
+    try {
+        const data = fs.readFileSync('quiz_data.json');
+        existingData = JSON.parse(data);
+    } catch (error) {
+        console.error('Error reading existing data:', error);
+    }
+
+    // Parse new quiz data
+    let newData = [];
+    try {
+        newData = JSON.parse(quizData);
+    } catch (error) {
+        console.error('Error parsing new data:', error);
+    }
+
+    // Append new data to existing data
+    const combinedData = existingData.concat(newData);
+
+    // Write combined data back to JSON file
+    try {
+        fs.writeFileSync('quiz_data.json', JSON.stringify(combinedData, null, 2));
+    } catch (error) {
+        console.error('Error writing combined data:', error);
+        return res.status(500).send('Error saving quiz data.');
+    }
+
+    // Move uploaded images to uploads folder
+    if (req.files && req.files.length > 0) {
+        req.files.forEach(file => {
+            fs.renameSync(file.path, 'uploads/' + file.originalname);
+        });
+    }
+
+    res.send('Quiz data and images saved successfully!');
+});
 
 // Start the server
 const PORT = process.env.PORT || 3000;
