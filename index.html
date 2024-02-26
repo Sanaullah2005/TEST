@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic Quiz</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+    }
+    .quiz-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+    }
+    .question {
+        margin-bottom: 15px;
+    }
+    .options label {
+        display: block;
+        margin-bottom: 10px;
+    }
+    button {
+        padding: 10px 20px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    .question input[type=text]{
+        height: 3vh;
+        width: 100%;
+        margin-bottom: 15px;
+    }
+    .question select{
+        height: 3vh;
+        width: 100%;
+    }
+    .custom-file-upload {
+    width: 100%;
+    display: inline-block;
+    padding: 6px 3px;
+    text-align: center;
+    cursor: pointer;
+    border: 1px dashed #000;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.custom-file-upload input[type="file"] {
+    display: none;
+}
+
+.custom-file-upload span {
+    margin-right: 5px;
+}
+</style>
+</head>
+<body>
+    <header>
+        <div id="username"></div>
+    </header>
+<center>
+<button type="button" onclick="addQuestion()">Add Question</button>
+
+<div id="submittedQuiz" style="display: none;">
+    <h2>Submitted Quiz</h2>
+    <div id="submittedQuizContent"></div>
+</div>
+</center>
+<div class="quiz-container" id="quiz-container">
+    <h2>Dynamic Quiz</h2>
+    <form id="quizForm" action="/submit" method="post" enctype="multipart/form-data">
+        <!-- Dynamic quiz question fields -->
+        <div id="quizQuestions">
+            <!-- Initial question field -->
+            <div class="question">
+                
+            </div>
+        </div>
+        <button type="button" onclick="submitQuiz()">Submit</button>
+        <button type="button" onclick="addQuestion()">Add Question</button>
+    </form>
+</div>
+
+<div id="quizzes-container"></div>
+
+<script>
+    window.onload = function() {
+ // Fetch quiz data from the server
+ fetch('/quizzes')
+     .then(response => response.json())
+     .then(quizzes => {
+         quizzes.forEach((quiz, index) => {
+             const quizContainer = document.createElement('div');
+             quizContainer.classList.add('quiz');
+
+             const questionElement = document.createElement('p');
+             questionElement.textContent = `Question ${index + 1}: ${quiz.question}`;
+             quizContainer.appendChild(questionElement);
+
+             // Display image if available
+             console.log(quiz.imageUrl)
+             if (quiz.imageUrl) {
+                 const imageElement = document.createElement('img');
+                 imageElement.src = `/uploads/${quiz.imageUrl}`;
+                 imageElement.style.maxWidth = '100%';
+                 quizContainer.appendChild(imageElement);
+             }
+
+             // Display options as radio buttons
+             const optionsContainer = document.createElement('div');
+             quiz.options.forEach((option, optionIndex) => {
+                 const optionLabel = document.createElement('label');
+                 const optionRadio = document.createElement('input');
+                 optionRadio.type = 'radio';
+                 optionRadio.name = `question_${index}`;
+                 optionRadio.value = optionIndex;
+                 optionRadio.dataset.correct = optionIndex === quiz.correctOptionIndex ? 'true' : 'false'; // Set data attribute for correct option
+                 optionRadio.addEventListener('click', function() {
+                     const correctRadio = optionsContainer.querySelector('input[type="radio"][data-correct="true"]');
+                     if (optionIndex === quiz.correctOptionIndex) {
+                         optionLabel.style.color = 'green'; // Set correct option to green
+                     } else {
+                         optionLabel.style.color = 'red'; // Set selected option to red
+                         if (correctRadio) {
+                             correctRadio.parentElement.style.color = 'green'; // Set correct option to green
+                         }
+                     }
+                 });
+                 optionLabel.appendChild(optionRadio);
+                 optionLabel.appendChild(document.createTextNode(option));
+                 optionsContainer.appendChild(optionLabel);
+             });
+             quizContainer.appendChild(optionsContainer);
+
+             document.getElementById('quizzes-container').appendChild(quizContainer);
+         });
+     })
+     .catch(error => console.error('Error fetching quizzes:', error));
+};
+ </script>
+
+<script>
+    // Read the username from the cookie and display it in the header
+    const username = document.cookie.split(';').find(cookie => cookie.trim().startsWith('username=')).split('=')[1];
+    if (username) {
+        document.getElementById('username').innerText = `Welcome: ${username}`;
+    }
+</script>
+
+<script>
+function addQuestion() {
+    var quizQuestions = document.getElementById("quizQuestions");
+    var questionNumber = quizQuestions.children.length;
+
+    var newQuestion = document.createElement("div");
+    newQuestion.classList.add("question");
+
+    newQuestion.innerHTML = `
+        <label for="question${questionNumber}">Question ${questionNumber}:</label>
+        <input type="text" id="question${questionNumber}" name="question[]" placeholder="Enter your question">
+        <label for="image${questionNumber}" class="custom-file-upload">
+            <span class="image">Choose image (optional)</span>
+            <input type="file" id="image${questionNumber}" name="image" accept="image/*" onchange="previewImage(event, ${questionNumber})">
+        </label>
+        <div id="imagePreview${questionNumber}" style="display: none;"></div>
+        <input type="text" name="options[]" placeholder="Option 1" data-correct="false">
+        <input type="text" name="options[]" placeholder="Option 2" data-correct="false">
+        <input type="text" name="options[]" placeholder="Option 3" data-correct="false">
+        <input type="text" name="options[]" placeholder="Option 4" data-correct="false">
+        <label>Choose correct Option :- </label>
+        <select name="correctOption">
+            <option value="1">Option 1</option>
+            <option value="2">Option 2</option>
+            <option value="3">Option 3</option>
+            <option value="4">Option 4</option>
+        </select>
+    `;
+
+    quizQuestions.appendChild(newQuestion);
+}
+
+function previewImage(event, questionNumber) {
+    var input = event.target;
+    var preview = document.getElementById(`imagePreview${questionNumber}`);
+    var file = input.files[0];
+
+    if (file) {
+        var reader = new FileReader();
+        reader.onload = function() {
+            var img = document.createElement("img");
+            img.src = reader.result;
+            img.style.maxWidth = "200px"; // Adjust the size as needed
+            preview.innerHTML = "";
+            preview.appendChild(img);
+            preview.style.display = "block";
+        };
+        reader.readAsDataURL(file);
+    } else {
+        preview.innerHTML = "";
+        preview.style.display = "none";
+    }
+}
+
+function submitQuiz() {
+    var form = document.getElementById("quizForm");
+    var formData = new FormData(form);
+
+    
+    // Convert form data to JSON for further processing
+    var quizData = {};
+    formData.forEach((value, key) => {
+        if (!quizData.hasOwnProperty(key)) {
+            quizData[key] = [];
+        }
+        quizData[key].push(value);
+    });
+
+    // Generate quiz content based on submitted data
+    var submittedQuizContent = document.getElementById("submittedQuizContent");
+    submittedQuizContent.innerHTML = "";
+
+    var quizContent = []; // Array to hold quiz content for JSON
+
+    Object.keys(quizData).forEach(key => {
+        if (key === "question[]") {
+            quizData[key].forEach((question, index) => {
+                var questionData = {
+                    question: question,
+                    options: quizData["options[]"].slice(index * 4, (index + 1) * 4),
+                    correctOptionIndex: quizData["correctOption"][index] - 1 // Adjust for 0-based index
+                };
+                quizContent.push(questionData);
+
+                // Displaying submitted quiz content
+                var questionDiv = document.createElement("div");
+                questionDiv.innerHTML = `<p>${index + 1}. ${question}</p>`;
+                // Displaying images if available
+                var image = formData.getAll("image")[index];
+                if (image && image.size > 0) {
+                    var imageElement = document.createElement("img");
+                    imageElement.src = URL.createObjectURL(image);
+                    imageElement.style.maxWidth = "100%";
+                    questionDiv.appendChild(imageElement);
+                }
+                // Displaying options
+                var options = questionData.options;
+                var correctOptionIndex = questionData.correctOptionIndex;
+                options.forEach((option, optionIndex) => {
+                    var label = document.createElement("label");
+                    var radioButton = document.createElement("input");
+                    radioButton.type = "radio";
+                    radioButton.name = "q" + (index + 1);
+                    var isCorrect = optionIndex === correctOptionIndex;
+                    radioButton.dataset.correct = isCorrect.toString();
+                    radioButton.addEventListener("click", function() {
+                        if (isCorrect) {
+                            label.style.color = "green";
+                        } else {
+                            label.style.color = "red";
+                            var correctRadio = questionDiv.querySelector('input[type="radio"][data-correct="true"]');
+                            if (correctRadio) {
+                                correctRadio.parentElement.style.color = "green";
+                            }
+                        }
+                    });
+                    label.appendChild(radioButton);
+                    label.appendChild(document.createTextNode(option));
+                    questionDiv.appendChild(label);
+                });
+                submittedQuizContent.appendChild(questionDiv);
+            });
+        }
+    });
+    document.getElementById("submittedQuiz").style.display = "block";
+    var form = document.getElementById("quizForm");
+    var formData = new FormData(form);
+    console.log(formData)
+
+    // Convert form data to JSON for further processing
+    var quizData = {};
+    formData.forEach((value, key) => {
+        if (!quizData.hasOwnProperty(key)) {
+            quizData[key] = [];
+        }
+        quizData[key].push(value);
+    });
+
+    // Generate quiz content based on submitted data
+    var quizContent = []; // Array to hold quiz content for JSON
+
+    Object.keys(quizData).forEach(key => {
+        if (key === "question[]") {
+            quizData[key].forEach((question, index) => {
+                var questionData = {
+                    question: question,
+                    options: quizData["options[]"].slice(index * 4, (index + 1) * 4),
+                    correctOptionIndex: parseInt(quizData["correctOption"][index]) - 1 // Adjust for 0-based index
+                };
+
+                // Fetch selected image, if any
+                // Fetch selected image, if any
+                // Fetch selected image name using the input element's ID
+                var imageInput = document.getElementById(`image${index+1}`);
+                console.log(index)
+                console.log(imageInput)
+                var imageName = imageInput.files[0].name;
+
+                // Append image name to question data
+                questionData.imageName = imageName;
+
+
+
+                quizContent.push(questionData);
+            });
+        }
+    });
+
+    // Convert quizContent to JSON
+    var jsonContent = JSON.stringify(quizContent, null, 2);
+
+    // Create a Blob containing the JSON data
+    var blob = new Blob([jsonContent], { type: "application/json" });
+
+    // Create a temporary anchor element to trigger the download
+    var a = document.createElement("a");
+    a.download = "quiz_data.json";
+    a.href = URL.createObjectURL(blob);
+
+    // Trigger the download
+    a.click();
+
+    // Download selected images
+    Object.keys(quizData).forEach(key => {
+        if (key.startsWith("image")) {
+            var image = quizData[key][0];
+            var imageAnchor = document.createElement("a");
+            imageAnchor.download = image.name;
+            imageAnchor.href = URL.createObjectURL(image);
+            imageAnchor.click();
+        }
+    });
+
+    var form = document.getElementById("quizForm");
+var formData = new FormData(form);
+
+// Convert quizData to JSON string
+var quizData = [];
+var questionCount = 0;
+formData.getAll('question[]').forEach((question, index) => {
+    var options = formData.getAll('options[]').slice(index * 4, (index + 1) * 4);
+    var correctOptionIndex = parseInt(formData.getAll('correctOption')[questionCount]) - 1; // Adjust for 0-based index
+    var imageInput = document.getElementById(`image${index + 1}`);
+    var imageName = imageInput.files.length > 0 ? imageInput.files[0].name : null;
+    var questionObj = {
+        question: question,
+        options: options,
+        correctOptionIndex: correctOptionIndex,
+        imageUrl: imageName
+    };
+    quizData.push(questionObj);
+    questionCount++;
+});
+
+var quizDataJSON = JSON.stringify(quizData, null, 2);
+
+// Append JSON data as a field in FormData
+formData.append('quizData', quizDataJSON);
+
+// Send form data to the server using fetch
+fetch('/submit', {
+    method: 'POST',
+    body: formData // Send FormData object
+})
+.then(response => response.text())
+.then(message => {
+    console.log(message); // Server response
+})
+.catch(error => console.error('Error:', error));
+}
+</script>
+
+</body>
+</html>
